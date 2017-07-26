@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	version   = "0.0.0"
+	version   = "0.1.0"
 	pluginTyp = qtypes.CACHE
 	pluginPkg = "health"
 	dockerAPI = "v1.29"
@@ -148,7 +148,7 @@ func (p *Plugin) checkHealth() {
 }
 
 func (p *Plugin) startHTTP() {
-	addr := fmt.Sprintf("0.0.0.0:8123")
+	addr := fmt.Sprintf("0.1.0.0:8123")
 	sock, err := net.Listen("tcp", addr)
 	if err != nil {
 		p.Log("error", err.Error())
