@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	version = "0.2.0"
+	version = "0.3.1"
 	pluginTyp = "collector"
 	pluginPkg = "docker-logs"
 	dockerAPI = "v1.29"
@@ -81,18 +81,6 @@ func (p *Plugin) SubscribeRunning() {
 			if err != nil {
 				continue
 			}
-			// Skip those with the label:
-			skipCnt := false
-			for label, _ := range cjson.Config.Labels {
-				if label == skipLabel {
-					p.Log("info", fmt.Sprintf("Skip subscribing to logs of '%s' as label '%s' is set", cnt.Names, skipLabel))
-					skipCnt = true
-					break
-				}
-			}
-			if skipCnt {
-				continue
-			}
 			event := events.Message{
 				Type:   "container",
 				Action: "running",
@@ -101,11 +89,29 @@ func (p *Plugin) SubscribeRunning() {
 					Attributes: map[string]string{"name": strings.Trim(cnt.Names[0],"/")},
 				},
 			}
+			// Skip those with the label:
+			skipCnt := false
+			for label, _ := range cjson.Config.Labels {
+				if label == skipLabel {
+					p.Log("info", fmt.Sprintf("Skip subscribing to logs of '%s' as label '%s' is set", cnt.Names, skipLabel))
+					b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
+					de := qtypes_docker_events.NewDockerEvent(b, event)
+					ce := qtypes_docker_events.NewContainerEvent(de, cjson)
+					h := qtypes_health.NewHealthBeat(b, "logSkipRoutine", ce.Container.ID, "start")
+					p.Log("info", "Send logSkip-HealthBeat for "+h.Actor)
+					p.QChan.SendData(h)
+					skipCnt = true
+					break
+				}
+			}
+			if skipCnt {
+				continue
+			}
+
 			b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
 			de := qtypes_docker_events.NewDockerEvent(b, event)
 			ce := qtypes_docker_events.NewContainerEvent(de, cjson)
-			h := qtypes_health.NewHealthBeat(b, "logRoutine", ce.Container.ID, "stop")
-			p.Log("info", "Send HealthBeat for "+h.Actor)
+			h := qtypes_health.NewHealthBeat(b, "logRoutine", ce.Container.ID, "start")
 			p.QChan.SendData(h)
 			p.StartSupervisorCE(ce)
 		}
@@ -158,19 +164,30 @@ func (p *Plugin) Run() {
 				case "container":
 					switch ce.Event.Action {
 					case "start":
-						b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
-						hb := qtypes_health.NewHealthBeat(b, "logRoutine", ce.Container.ID, "start")
-						p.QChan.SendData(hb)
-						p.Log("debug", fmt.Sprintf("Container started: %s | ID:%s", ce.Container.Name, ce.Container.ID))
+						p.sendHealthhbeat(ce, "start")
 						p.StartSupervisorCE(ce)
 					case "die":
-						b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
-						hb := qtypes_health.NewHealthBeat(b, "logRoutine", ce.Container.ID, "stop")
-						p.QChan.SendData(hb)
+						p.sendHealthhbeat(ce, "stop")
 						p.sMap[ce.Event.Actor.ID].Com <- ce.Event.Action
 					}
 				}
 			}
 		}
 	}
+}
+
+
+func (p *Plugin) sendHealthhbeat(ce qtypes_docker_events.ContainerEvent, action string) {
+	skipLabel := p.CfgStringOr("skip-container-label", "org.qnib.qframe.skip-log")
+	b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
+	// Skip those with the label:
+	routineName := "logRoutine"
+	for label, _ := range ce.Container.Config.Labels {
+		if label == skipLabel {
+			routineName = "logSkipRoutine"
+			break
+		}
+	}
+	h := qtypes_health.NewHealthBeat(b, routineName, ce.Container.ID, action)
+	p.QChan.SendData(h)
 }

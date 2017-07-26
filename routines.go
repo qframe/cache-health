@@ -19,12 +19,21 @@ func NewRoutines() *Routines {
 	}
 }
 
-func (r *Routines) String() string {
+func (r *Routines) Get() []string {
 	res := []string{}
 	for _, x := range r.value.ToSlice() {
 		res = append(res, fmt.Sprintf("%s", x))
 	}
 	sort.Strings(res)
+	return res
+}
+
+func (r *Routines) Count() int {
+	return len(r.Get())
+}
+
+func (r *Routines) String() string {
+	res := r.Get()
 	return fmt.Sprintf("\"%s\"", strings.Join(res, ","))
 }
 
