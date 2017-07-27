@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	version = "0.3.2"
+	version = "0.3.4"
 	pluginTyp = "collector"
 	pluginPkg = "docker-logs"
 	dockerAPI = "v1.29"
@@ -97,7 +97,7 @@ func (p *Plugin) SubscribeRunning() {
 					b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
 					de := qtypes_docker_events.NewDockerEvent(b, event)
 					ce := qtypes_docker_events.NewContainerEvent(de, cjson)
-					h := qtypes_health.NewHealthBeat(b, "logSkipRoutine", ce.Container.ID, "start")
+					h := qtypes_health.NewHealthBeat(b, "routine.logSkip", ce.Container.ID[:13], "start")
 					p.Log("info", "Send logSkip-HealthBeat for "+h.Actor)
 					p.QChan.SendData(h)
 					skipCnt = true
@@ -107,11 +107,17 @@ func (p *Plugin) SubscribeRunning() {
 			if skipCnt {
 				continue
 			}
+			if cjson.HostConfig.LogConfig.Type != "json-file" {
+				b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
+				h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", cjson.ID[:13], "start")
+				p.QChan.SendData(h)
+				continue
+			}
 
 			b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
 			de := qtypes_docker_events.NewDockerEvent(b, event)
 			ce := qtypes_docker_events.NewContainerEvent(de, cjson)
-			h := qtypes_health.NewHealthBeat(b, "logRoutine", ce.Container.ID, "start")
+			h := qtypes_health.NewHealthBeat(b, "routine.log", ce.Container.ID[:13], "start")
 			p.QChan.SendData(h)
 			p.StartSupervisorCE(ce)
 		}
@@ -182,12 +188,21 @@ func (p *Plugin) sendHealthhbeat(ce qtypes_docker_events.ContainerEvent, action 
 	b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
 	// Skip those with the label:
 	routineName := "routine.log"
-	for label, _ := range ce.Container.Config.Labels {
-		if label == skipLabel {
+	for label, val := range ce.Container.Config.Labels {
+		if label == skipLabel && val == "true" {
 			routineName = "routine.logSkip"
 			break
 		}
 	}
-	h := qtypes_health.NewHealthBeat(b, routineName, ce.Container.ID, action)
+	if ce.Container.HostConfig.LogConfig.Type != "json-file" {
+		b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
+		h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", ce.Container.ID[:13], "start")
+		p.QChan.SendData(h)
+		return
+	}
+
+	h := qtypes_health.NewHealthBeat(b, routineName, ce.Container.ID[:13], action)
+	p.QChan.SendData(h)
+	h = qtypes_health.NewHealthBeat(b, "vitals", p.Name, fmt.Sprintf("%s.%s", ce.Container.ID[:13], action))
 	p.QChan.SendData(h)
 }

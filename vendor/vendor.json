@@ -917,16 +917,16 @@
 			"revisionTime": "2017-07-20T07:47:08Z"
 		},
 		{
-			"checksumSHA1": "DlAZteBamZ9YBMxbeI7LU5sezQA=",
+			"checksumSHA1": "GtvwcekVVHfcw4oq3fKoZWk19ew=",
 			"path": "github.com/qframe/collector-docker-logs",
-			"revision": "ccb3af21b5efaec3feb8648f2787ed343c492928",
-			"revisionTime": "2017-07-27T11:20:33Z"
+			"revision": "b939edeb26af91b93ea0f0a22dcd5510c98721a5",
+			"revisionTime": "2017-07-27T13:15:11Z"
 		},
 		{
-			"checksumSHA1": "t6nofI9dBp3VAb9aXHoSxb1ZS3k=",
+			"checksumSHA1": "WEROk9qduT5wFANtkUMSqrmEbP4=",
 			"path": "github.com/qframe/collector-docker-stats",
-			"revision": "27094e61521ac9c8ddfda2eeef637e8d4b774f9a",
-			"revisionTime": "2017-07-27T11:20:02Z"
+			"revision": "099d305942198435fa78c5afbbbd2a3bda22bffe",
+			"revisionTime": "2017-07-27T13:17:30Z"
 		},
 		{
 			"checksumSHA1": "qTxHjY8oFOfYzlsu582xuqckC50=",

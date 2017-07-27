@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
+	"time"
 )
 
 type HealthEndpoint struct {
-	health string	 				`json:"health,omitempty"`
-	healthMsg string	 			`json:"healthMsg,omitempty"`
-	goRoutines map[string]*Routines	`json:"routines,omitempty"`
+	health 		string	 				`json:"health,omitempty"`
+	healthMsg 	string	 				`json:"healthMsg,omitempty"`
+	goRoutines 	map[string]*Routines	`json:"routines,omitempty"`
+	vitals		map[string]*Vitals		`json:"vitals,omitempty"`
 }
 
 func (he *HealthEndpoint) AddRoutine(routine, id string) (err error) {
@@ -32,7 +34,6 @@ func (he *HealthEndpoint) DelRoutine(routine, id string) (err error) {
 	return
 }
 
-
 func (he *HealthEndpoint) CountRoutine(routine string) int {
 	r, ok := he.goRoutines[routine]
 	if !ok {
@@ -46,6 +47,7 @@ func NewHealthEndpoint(routines []string) *HealthEndpoint {
 		health: "starting",
 		healthMsg: "Just started",
 		goRoutines: map[string]*Routines{},
+		vitals: map[string]*Vitals{},
 	}
 	for _, r := range routines {
 		he.goRoutines[r] = NewRoutines()
@@ -53,16 +55,25 @@ func NewHealthEndpoint(routines []string) *HealthEndpoint {
 	return he
 }
 
-
 func (he *HealthEndpoint) GetJSON() map[string]interface{} {
+	return he.getJSON(time.Now())
+}
+
+func (he *HealthEndpoint) getJSON(t time.Time) map[string]interface{} {
 	routines :=  map[string]string{}
 	for n, r := range he.goRoutines {
 		routines[n] = r.String()
 	}
+	vitals :=  map[string]interface{}{}
+	for n, v := range he.vitals {
+		vitals[n] = v.getJSON(t)
+	}
+
 	res := map[string]interface{}{
 		"status": he.health,
 		"message": he.healthMsg,
 		"routines": routines,
+		"vitals": vitals,
 	}
 	return res
 }
@@ -88,5 +99,15 @@ func (he *HealthEndpoint) Handle(w http.ResponseWriter, req *http.Request) {
 		json.NewEncoder(w).Encode(he.GetJSON())
 	} else {
 		fmt.Fprint(w, he.GetTXT())
+	}
+}
+
+
+/// Vitals
+func (he *HealthEndpoint) UpsertVitals(name, state string , t time.Time) {
+	if v, ok := he.vitals[name]; !ok {
+		 he.vitals[name] = newVitals(t, state)
+	} else {
+		v.UpdateLast(t, state)
 	}
 }

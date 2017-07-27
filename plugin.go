@@ -36,7 +36,7 @@ func New(qChan qtypes.QChan, cfg *config.Config, name string) (Plugin, error) {
 	p := qtypes.NewNamedPlugin(qChan, cfg, pluginTyp, pluginPkg, name, version)
 	return Plugin{
 		Plugin: 			p,
-		HealthEndpoint:		NewHealthEndpoint([]string{"log","logSkip", "stats"}),
+		HealthEndpoint:		NewHealthEndpoint([]string{"log","logSkip", "logWrongType", "stats"}),
 	}, nil
 }
 
@@ -61,8 +61,7 @@ func (p *Plugin) SetHealth(status, msg string) {
 	p.HealthEndpoint.healthMsg = msg
 }
 
-func (p *Plugin) handleHB(hb qtypes_health.HealthBeat) {
-	p.Log("trace", fmt.Sprintf("Received HealthBeat: %v", hb))
+func (p *Plugin) handleRoutines(hb qtypes_health.HealthBeat) {
 	switch hb.Type {
 	case "routine.log":
 		switch hb.Action {
@@ -78,6 +77,13 @@ func (p *Plugin) handleHB(hb qtypes_health.HealthBeat) {
 		case "stop":
 			p.RoutineDel("logSkip", hb.Actor)
 		}
+	case "routine.logWrongType":
+		switch hb.Action {
+		case "start":
+			p.RoutineAdd("logWrongType", hb.Actor)
+		case "stop":
+			p.RoutineDel("logWrongType", hb.Actor)
+		}
 	case "routine.stats":
 		switch hb.Action {
 		case "start":
@@ -85,6 +91,20 @@ func (p *Plugin) handleHB(hb qtypes_health.HealthBeat) {
 		case "stop":
 			p.RoutineDel("stats", hb.Actor)
 		}
+	}
+}
+
+func (p *Plugin) handleVitals(hb qtypes_health.HealthBeat) {
+	p.HealthEndpoint.UpsertVitals(hb.Actor, hb.Action, hb.Time)
+}
+
+func (p *Plugin) handleHB(hb qtypes_health.HealthBeat) {
+	p.Log("debug", fmt.Sprintf("Received HealthBeat: %v", hb))
+	switch {
+	case strings.HasPrefix(hb.Type, "routine."):
+		p.handleRoutines(hb)
+	case hb.Type == "vitals":
+		p.handleVitals(hb)
 	}
 }
 
@@ -146,8 +166,9 @@ func (p *Plugin) checkHealth(cntCount int) {
 	}
 	lCnt := p.HealthEndpoint.CountRoutine("log")
 	lSkipCnt := p.HealthEndpoint.CountRoutine("logSkip")
-	msg = append(msg, fmt.Sprintf("logsGoRoutine:(%d [logs] + %d [skipped])", lCnt, lSkipCnt))
-	if cntCount == (lCnt + lSkipCnt) {
+	lWrongType := p.HealthEndpoint.CountRoutine("logWrongType")
+	msg = append(msg, fmt.Sprintf("logsGoRoutine:(%d [logs] + %d [skipped] + %d [non json-file])", lCnt, lSkipCnt, lWrongType))
+	if cntCount == (lCnt + lSkipCnt + lWrongType) {
 		p.SetHealth("healthy", strings.Join(msg, " | "))
 	} else {
 		p.SetHealth("unhealthy", strings.Join(msg, " | "))

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-curl -s localhost:8123/_health
+curl -sH "Accept: application/json" localhost:8123/_health |jq .

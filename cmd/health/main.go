@@ -16,7 +16,7 @@ func main() {
 	qChan.Broadcast()
 	cfgMap := map[string]string{
 		"log.level": "debug",
-		"log.only-plugins": "health",
+		"log.only-plugins": "health,logs",
 		"collector.logs.inputs": "events",
 		"collector.stats.inputs": "events",
 	}

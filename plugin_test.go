@@ -20,12 +20,13 @@ func TestPlugin_checkHealth(t *testing.T) {
 	p.checkHealth(0)
 	assert.Equal(t, 0, p.HealthEndpoint.CountRoutine("log"))
 	assert.Equal(t, 0, p.HealthEndpoint.CountRoutine("logSkip"))
+	assert.Equal(t, 0, p.HealthEndpoint.CountRoutine("logWrongType"))
 	assert.Equal(t, 0, p.HealthEndpoint.CountRoutine("stats"))
 	p.RoutineAdd("log", "id1")
 	assert.Equal(t, 1, p.HealthEndpoint.CountRoutine("log"))
 	p.checkHealth(0)
 	assert.Equal(t, "unhealthy", p.HealthEndpoint.health)
-	assert.Equal(t, "RunningContainers:0 | metricsGoRoutines:0 | logsGoRoutine:(1 [logs] + 0 [skipped])", p.HealthEndpoint.healthMsg)
+	assert.Equal(t, "RunningContainers:0 | metricsGoRoutines:0 | logsGoRoutine:(1 [logs] + 0 [skipped] + 0 [non json-file])", p.HealthEndpoint.healthMsg)
 	p.checkHealth(1)
 	assert.Equal(t, "unhealthy", p.HealthEndpoint.health)
 	assert.Equal(t, "RunningContainers:1 | metricsGoRoutines:0", p.HealthEndpoint.healthMsg)
@@ -33,7 +34,7 @@ func TestPlugin_checkHealth(t *testing.T) {
 	p.checkHealth(1)
 	assert.Equal(t, 1, p.HealthEndpoint.CountRoutine("stats"))
 	assert.Equal(t, "healthy", p.HealthEndpoint.health)
-	assert.Equal(t, "RunningContainers:1 | metricsGoRoutines:1 | logsGoRoutine:(1 [logs] + 0 [skipped])", p.HealthEndpoint.healthMsg)
+	assert.Equal(t, "RunningContainers:1 | metricsGoRoutines:1 | logsGoRoutine:(1 [logs] + 0 [skipped] + 0 [non json-file])", p.HealthEndpoint.healthMsg)
 
 }
 
