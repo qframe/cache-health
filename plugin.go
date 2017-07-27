@@ -8,7 +8,7 @@ import (
 	"github.com/zpatrick/go-config"
 	"github.com/qnib/qframe-types"
 	"github.com/qframe/types/health"
-	"net"
+	"github.com/urfave/negroni"
 	"net/http"
 	"time"
 	"strings"
@@ -33,6 +33,7 @@ type Plugin struct {
 	statsRoutines   *Routines
 	healthState		*expvar.String
 	healthMsg		*expvar.String
+	HealthEndpoint  *HealthEndpoint
 }
 
 
@@ -41,21 +42,58 @@ func New(qChan qtypes.QChan, cfg *config.Config, name string) (Plugin, error) {
 	p := qtypes.NewNamedPlugin(qChan, cfg, pluginTyp, pluginPkg, name, version)
 	return Plugin{
 		Plugin: 			p,
-		logRoutines: 		NewRoutines(),
-		logSkipRoutines:	NewRoutines(),
-		statsRoutines: 		NewRoutines(),
-		healthState:		expvar.NewString("health"),
-		healthMsg:			expvar.NewString("healthMsg"),
+		HealthEndpoint:		NewHealthEndpoint([]string{"log","logSkip", "stats"}),
 	}, nil
 }
 
-func (p *Plugin) PublishExpVars() {
-	expvar.Publish("statsRoutines", p.statsRoutines)
-	expvar.Publish("logRoutines", p.logRoutines)
-	expvar.Publish("logSkipRoutines", p.logSkipRoutines)
-	p.healthState.Set("true")
-	p.healthMsg.Set("Just started")
+
+func (p *Plugin) RoutineAdd(routine, id string) {
+	err := p.HealthEndpoint.AddRoutine(routine, id)
+	if err != nil {
+		p.Log("error", err.Error())
+	}
 }
+
+func (p *Plugin) RoutineDel(routine, id string) {
+	err := p.HealthEndpoint.DelRoutine(routine, id)
+	if err != nil {
+		p.Log("error", err.Error())
+	}
+
+}
+
+func (p *Plugin) SetHealth(status, msg string) {
+	p.HealthEndpoint.health = status
+	p.HealthEndpoint.healthMsg = msg
+}
+
+func (p *Plugin) handleHB(hb qtypes_health.HealthBeat) {
+	p.Log("trace", fmt.Sprintf("Received HealthBeat: %v", hb))
+	switch hb.Type {
+	case "routine.log":
+		switch hb.Action {
+		case "start":
+			p.RoutineAdd("log", hb.Actor)
+		case "stop":
+			p.RoutineDel("log", hb.Actor)
+		}
+	case "routine.logSkip":
+		switch hb.Action {
+		case "start":
+			p.RoutineAdd("logSkip", hb.Actor)
+		case "stop":
+			p.RoutineDel("logSkip", hb.Actor)
+		}
+	case "routine.stats":
+		switch hb.Action {
+		case "start":
+			p.RoutineAdd("stats", hb.Actor)
+		case "stop":
+			p.RoutineDel("stats", hb.Actor)
+		}
+	}
+}
+
 // Run fetches everything from the Data channel and flushes it to stdout
 func (p *Plugin) Run() {
 	p.Log("notice", fmt.Sprintf("Start plugin v%s", p.Version))
@@ -67,40 +105,16 @@ func (p *Plugin) Run() {
 	if err != nil {
 		return
 	}
-	time.Sleep(time.Second*time.Duration(2))
-	go p.PublishExpVars()
 	for {
 		select {
 		case <-tc.Read:
-			p.checkHealth()
+			cntCount := p.getRunningCntCount()
+			p.checkHealth(cntCount)
 		case val := <-dc.Read:
 			switch val.(type) {
 			case qtypes_health.HealthBeat:
 				hb := val.(qtypes_health.HealthBeat)
-				p.Log("info", fmt.Sprintf("Received HealthBeat: %v", hb))
-				switch hb.Type {
-				case "logRoutine":
-					switch hb.Action {
-					case "start":
-						p.logRoutines.Add(hb.Actor)
-					case "stop":
-						p.logRoutines.Del(hb.Actor)
-					}
-				case "logSkipRoutine":
-					switch hb.Action {
-					case "start":
-						p.logSkipRoutines.Add(hb.Actor)
-					case "stop":
-						p.logSkipRoutines.Del(hb.Actor)
-					}
-				case "statsRoutine":
-					switch hb.Action {
-					case "start":
-						p.statsRoutines.Add(hb.Actor)
-					case "stop":
-						p.statsRoutines.Del(hb.Actor)
-					}
-				}
+				p.handleHB(hb)
 			}
 		}
 	}
@@ -114,46 +128,54 @@ func (p *Plugin) connectingDocker() (err error) {
 	}
 	return
 }
-func (p *Plugin) checkHealth() {
-	msg := []string{}
-	// check currently running containers against the Sets held
+
+func (p *Plugin) getRunningCntCount() int {
 	info, err := p.cli.Info(ctx)
 	if err != nil {
 		msg := fmt.Sprintf("Error during Info(): %s", err)
 		p.Log("error", msg)
-		p.healthState.Set("unhealthy")
-		p.healthMsg.Set(msg)
-		return
+		p.SetHealth("unhealthy", msg)
+		return -1
 	}
-	msg = append(msg, fmt.Sprintf("RunningContainers:%d", info.ContainersRunning))
-	statsCount := p.statsRoutines.Count()
-	msg = append(msg, fmt.Sprintf("metricsGoRoutines:%d", statsCount))
-	if info.ContainersRunning == statsCount {
-		p.healthState.Set("healthy")
+	return info.ContainersRunning
+}
+
+func (p *Plugin) checkHealth(cntCount int) {
+	msg := []string{fmt.Sprintf("RunningContainers:%d", cntCount)}
+	statsCnt := p.HealthEndpoint.CountRoutine("stats")
+	msg = append(msg, fmt.Sprintf("metricsGoRoutines:%d", statsCnt))
+	if cntCount == statsCnt {
+		p.SetHealth("healthy", strings.Join(msg, " | "))
 	} else {
-		p.healthState.Set("unhealthy")
-		p.healthMsg.Set(strings.Join(msg, " | "))
+		p.SetHealth("unhealthy", strings.Join(msg, " | "))
 		return
 	}
-	logCount := p.logSkipRoutines.Count() + p.logRoutines.Count()
-	msg = append(msg, fmt.Sprintf("logsGoRoutine:(%d [logs] + %d [skipped])", p.logRoutines.Count(), p.logSkipRoutines.Count()))
-	if info.ContainersRunning == logCount {
-		p.healthState.Set("healthy")
+	lCnt := p.HealthEndpoint.CountRoutine("log")
+	lSkipCnt := p.HealthEndpoint.CountRoutine("logSkip")
+	msg = append(msg, fmt.Sprintf("logsGoRoutine:(%d [logs] + %d [skipped])", lCnt, lSkipCnt))
+	if cntCount == (lCnt + lSkipCnt) {
+		p.SetHealth("healthy", strings.Join(msg, " | "))
 	} else {
-		p.healthState.Set("unhealthy")
-		p.healthMsg.Set(strings.Join(msg, " | "))
+		p.SetHealth("unhealthy", strings.Join(msg, " | "))
 		return
 	}
-	p.healthMsg.Set(strings.Join(msg, " | "))
+	p.SetHealth("healthy", strings.Join(msg, " | "))
 }
 
 func (p *Plugin) startHTTP() {
-	addr := fmt.Sprintf("0.1.0.0:8123")
-	sock, err := net.Listen("tcp", addr)
-	if err != nil {
-		p.Log("error", err.Error())
-	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/_health", p.HealthEndpoint.Handle)
+	n := negroni.New()
+	n.UseHandler(mux)
+	n.Use(negroni.HandlerFunc(p.LogMiddleware))
+	addr := fmt.Sprintf("0.0.0.0:8123")
 	p.Log("info", fmt.Sprintf("Start health-endpoint: %s", addr))
-	http.Handle("/health", expvar.Handler())
-	http.Serve(sock, nil)
+	http.ListenAndServe(addr, n)
+}
+
+func (p *Plugin) LogMiddleware(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	now := time.Now()
+	next(rw, r)
+	dur := time.Now().Sub(now)
+	p.Log("trace", fmt.Sprintf("%s took %s", r.URL.String(), dur.String()))
 }

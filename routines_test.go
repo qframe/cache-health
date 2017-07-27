@@ -8,14 +8,14 @@ import (
 func TestRoutines(t *testing.T) {
 	r := NewRoutines()
 	r.Add("id1")
-	assert.Equal(t, "\"id1\"", r.String())
+	assert.Equal(t, "id1", r.String())
 	r.Add("id2")
-	assert.Equal(t, "\"id1,id2\"", r.String())
+	assert.Equal(t, "id1,id2", r.String())
 	r.Add("id2")
-	assert.Equal(t, "\"id1,id2\"", r.String())
+	assert.Equal(t, "id1,id2", r.String())
 	assert.Equal(t, 2, r.Count())
 	r.Del("id1")
-	assert.Equal(t, "\"id2\"", r.String())
+	assert.Equal(t, "id2", r.String())
 	assert.Equal(t, 1, r.Count())
 }
 

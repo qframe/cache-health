@@ -159,6 +159,13 @@
 			"revisionTime": "2017-07-26T02:15:18Z"
 		},
 		{
+			"checksumSHA1": "mrz/kicZiUaHxkyfvC/DyQcr8Do=",
+			"origin": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
+			"path": "github.com/davecgh/go-spew/spew",
+			"revision": "adab96458c51a58dc1783b3335dcce5461522e75",
+			"revisionTime": "2017-07-11T18:34:51Z"
+		},
+		{
 			"checksumSHA1": "AHhRdnSt25KL4h34UqsDRUXUpRo=",
 			"path": "github.com/deckarep/golang-set",
 			"revision": "3a36ffa8b5bf7cd329c8834c6b743d6930dad12f",
@@ -849,6 +856,13 @@
 			"revisionTime": "2017-05-05T04:36:39Z"
 		},
 		{
+			"checksumSHA1": "LuFv4/jlrmFNnDb/5SCSEPAM9vU=",
+			"origin": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
+			"path": "github.com/pmezard/go-difflib/difflib",
+			"revision": "792786c7400a136282c1664665ae0a8db921c6c2",
+			"revisionTime": "2016-01-10T10:55:54Z"
+		},
+		{
 			"checksumSHA1": "MGZxy/ICK9VAEPscQSEP33xz0t4=",
 			"path": "github.com/prometheus/client_golang/prometheus",
 			"revision": "94ff84a9a6ebb5e6eb9172897c221a64df3443bc",
@@ -903,16 +917,16 @@
 			"revisionTime": "2017-07-20T07:47:08Z"
 		},
 		{
-			"checksumSHA1": "sTomkQVw2Ow6nEd+r384aNk4Kqk=",
+			"checksumSHA1": "DlAZteBamZ9YBMxbeI7LU5sezQA=",
 			"path": "github.com/qframe/collector-docker-logs",
-			"revision": "b622ac93d1eadf9ae810456a246810343c1d5de1",
-			"revisionTime": "2017-07-26T14:03:49Z"
+			"revision": "ccb3af21b5efaec3feb8648f2787ed343c492928",
+			"revisionTime": "2017-07-27T11:20:33Z"
 		},
 		{
-			"checksumSHA1": "M6GSCjOywyxwWS47nrxy9MNPBFA=",
+			"checksumSHA1": "t6nofI9dBp3VAb9aXHoSxb1ZS3k=",
 			"path": "github.com/qframe/collector-docker-stats",
-			"revision": "a7abfea1f18b879622690a998754d1ef03eb2ae1",
-			"revisionTime": "2017-07-26T12:19:34Z"
+			"revision": "27094e61521ac9c8ddfda2eeef637e8d4b774f9a",
+			"revisionTime": "2017-07-27T11:20:02Z"
 		},
 		{
 			"checksumSHA1": "qTxHjY8oFOfYzlsu582xuqckC50=",
@@ -950,6 +964,18 @@
 			"path": "github.com/satori/go.uuid",
 			"revision": "5bf94b69c6b68ee1b541973bb8e1144db23a194b",
 			"revisionTime": "2017-03-21T23:07:31Z"
+		},
+		{
+			"checksumSHA1": "J+ppEq6nYMKxhB9+c+MD1x9UwSc=",
+			"path": "github.com/stretchr/testify/assert",
+			"revision": "05e8a0eda380579888eb53c394909df027f06991",
+			"revisionTime": "2017-07-13T16:51:06Z"
+		},
+		{
+			"checksumSHA1": "5/M5X93GwmCNzpB306atB5puLSo=",
+			"path": "github.com/urfave/negroni",
+			"revision": "b52430c192a156df9ce64f249ccb551f0ff3467f",
+			"revisionTime": "2017-07-11T19:42:05Z"
 		},
 		{
 			"checksumSHA1": "m8hYD/alsufIYIM7sR06wbL+dKo=",
@@ -1044,6 +1070,24 @@
 			"revisionTime": "2017-07-25T14:33:55Z"
 		},
 		{
+			"checksumSHA1": "ZQdHbB9VYCXwQ+9/CmZPhJv0+SM=",
+			"path": "golang.org/x/text/internal/gen",
+			"revision": "836efe42bb4aa16aaa17b9c155d8813d336ed720",
+			"revisionTime": "2017-07-09T00:38:22Z"
+		},
+		{
+			"checksumSHA1": "47nwiUyVBY2RKoEGXmCSvusY4Js=",
+			"path": "golang.org/x/text/internal/triegen",
+			"revision": "836efe42bb4aa16aaa17b9c155d8813d336ed720",
+			"revisionTime": "2017-07-09T00:38:22Z"
+		},
+		{
+			"checksumSHA1": "Yd5wMObzagIfCiKLpZbtBIrOUA4=",
+			"path": "golang.org/x/text/internal/ucd",
+			"revision": "836efe42bb4aa16aaa17b9c155d8813d336ed720",
+			"revisionTime": "2017-07-09T00:38:22Z"
+		},
+		{
 			"checksumSHA1": "faFDXp++cLjLBlvsr+izZ+go1WU=",
 			"path": "golang.org/x/text/secure/bidirule",
 			"revision": "836efe42bb4aa16aaa17b9c155d8813d336ed720",
@@ -1062,8 +1106,20 @@
 			"revisionTime": "2017-07-09T00:38:22Z"
 		},
 		{
+			"checksumSHA1": "u67CNB7snnIRQfOV+pE1mwCDkNc=",
+			"path": "golang.org/x/text/unicode/cldr",
+			"revision": "836efe42bb4aa16aaa17b9c155d8813d336ed720",
+			"revisionTime": "2017-07-09T00:38:22Z"
+		},
+		{
 			"checksumSHA1": "Anof4bt0AU+Sa3R8Rq0KBnlpbaQ=",
 			"path": "golang.org/x/text/unicode/norm",
+			"revision": "836efe42bb4aa16aaa17b9c155d8813d336ed720",
+			"revisionTime": "2017-07-09T00:38:22Z"
+		},
+		{
+			"checksumSHA1": "5R2IZ5umPfkD5QKt3pwrbIgmrDk=",
+			"path": "golang.org/x/text/unicode/rangetable",
 			"revision": "836efe42bb4aa16aaa17b9c155d8813d336ed720",
 			"revisionTime": "2017-07-09T00:38:22Z"
 		},

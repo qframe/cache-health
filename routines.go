@@ -10,7 +10,7 @@ import (
 
 type Routines struct {
 	mu sync.Mutex
-	value mapset.Set
+	value mapset.Set	 `json:"id,omitempty"`
 }
 
 func NewRoutines() *Routines {
@@ -34,7 +34,7 @@ func (r *Routines) Count() int {
 
 func (r *Routines) String() string {
 	res := r.Get()
-	return fmt.Sprintf("\"%s\"", strings.Join(res, ","))
+	return fmt.Sprintf("%s", strings.Join(res, ","))
 }
 
 func (r *Routines) Add(str string) {

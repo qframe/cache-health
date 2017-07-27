@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	version = "0.3.1"
+	version = "0.3.2"
 	pluginTyp = "collector"
 	pluginPkg = "docker-logs"
 	dockerAPI = "v1.29"
@@ -181,10 +181,10 @@ func (p *Plugin) sendHealthhbeat(ce qtypes_docker_events.ContainerEvent, action 
 	skipLabel := p.CfgStringOr("skip-container-label", "org.qnib.qframe.skip-log")
 	b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
 	// Skip those with the label:
-	routineName := "logRoutine"
+	routineName := "routine.log"
 	for label, _ := range ce.Container.Config.Labels {
 		if label == skipLabel {
-			routineName = "logSkipRoutine"
+			routineName = "routine.logSkip"
 			break
 		}
 	}
