@@ -2,7 +2,6 @@ package qcache_health
 
 import (
 	"context"
-	"expvar"
 	"fmt"
 	"github.com/docker/docker/client"
 	"github.com/zpatrick/go-config"
@@ -28,11 +27,6 @@ var (
 type Plugin struct {
 	qtypes.Plugin
 	cli *client.Client
-	logRoutines		*Routines
-	logSkipRoutines	*Routines
-	statsRoutines   *Routines
-	healthState		*expvar.String
-	healthMsg		*expvar.String
 	HealthEndpoint  *HealthEndpoint
 }
 
