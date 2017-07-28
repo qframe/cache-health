@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	version   = "0.1.1"
+	version   = "0.1.2"
 	pluginTyp = qtypes.CACHE
 	pluginPkg = "health"
 	dockerAPI = "v1.29"
