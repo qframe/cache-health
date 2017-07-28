@@ -57,8 +57,10 @@ func (p *Plugin) RoutineDel(routine, id string) {
 }
 
 func (p *Plugin) SetHealth(status, msg string) {
-	p.HealthEndpoint.health = status
-	p.HealthEndpoint.healthMsg = msg
+	err := p.HealthEndpoint.SetHealth(status, msg)
+	if err != nil {
+		p.Log("error", err.Error())
+	}
 }
 
 func (p *Plugin) handleRoutines(hb qtypes_health.HealthBeat) {

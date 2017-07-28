@@ -84,5 +84,24 @@ func TestHealthEndpoint_GetTXT(t *testing.T) {
 	}
 	got := he.GetTXT()
 	assert.Equal(t, strings.Join(exp,"\n"), got)
+}
 
+func TestHealthEndpoint_SetHealth(t *testing.T) {
+	he := NewHealthEndpoint([]string{})
+	err := he.SetHealth("unhealthy", "some error")
+	assert.Errorf(t, err, "As ring was just initialized, error should be fired")
+	he = NewHealthEndpoint([]string{})
+	err = he.SetHealth("healthy", "I am fine")
+	assert.NoErrorf(t, err, "Alright, move on")
+	for i := 1; i <= ringCapacity-1; i++ {
+		err = he.SetHealth("unhealthy", "some error")
+		assert.NoErrorf(t, err, "Ring has not reached fill capacity, move on")
+	}
+	err = he.SetHealth("unhealthy", "some error")
+	assert.Errorf(t, err, "Ring has reached fill capacity, should trigger error")
+	assert.Equal(t, "Status becomes unhealthy for a ring-capacity (3) duration: [healthy:'I am fine',unhealthy:'some error',unhealthy:'some error']", err.Error())
+	err = he.SetHealth("healthy", "I am fine")
+	assert.NoErrorf(t, err, "Alright, move on")
+	err = he.SetHealth("unhealthy", "some error")
+	assert.NoErrorf(t, err, "Ring has not reached fill capacity, move on")
 }

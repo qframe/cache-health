@@ -978,6 +978,12 @@
 			"revisionTime": "2017-07-11T19:42:05Z"
 		},
 		{
+			"checksumSHA1": "i7YzSONlcBL5MZv3P5hffh9IAz8=",
+			"path": "github.com/zfjagann/golang-ring",
+			"revision": "17637388c9f6665e2f475e4beec439e6fc19fee9",
+			"revisionTime": "2014-11-11T23:06:21Z"
+		},
+		{
 			"checksumSHA1": "m8hYD/alsufIYIM7sR06wbL+dKo=",
 			"path": "github.com/zpatrick/go-config",
 			"revision": "710646a45582fde23bf77bacbc2f38008dc7ffc2",
