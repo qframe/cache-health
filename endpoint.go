@@ -152,7 +152,7 @@ func (he *HealthEndpoint) GetTXT() string {
 		r := he.goRoutines[n]
 		res = append(res, fmt.Sprintf("%-15s: | %-2d | %s", n, r.Count(), r.String()))
 	}
-	return strings.Join(res, "\n")
+	return strings.Join(append(res, ""), "\n")
 }
 
 func (he *HealthEndpoint) Handle(w http.ResponseWriter, req *http.Request) {

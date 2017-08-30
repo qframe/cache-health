@@ -923,10 +923,10 @@
 			"revisionTime": "2017-08-29T12:27:43Z"
 		},
 		{
-			"checksumSHA1": "ac7NmebsZT+W6z+RdRo0h7j6chw=",
+			"checksumSHA1": "H4vBUMbHglAEvq1eu2Gm5Et766Q=",
 			"path": "github.com/qframe/collector-docker-logs",
-			"revision": "4455120cedf996a42e4a2e21b9d899f91f915d69",
-			"revisionTime": "2017-08-30T10:59:06Z"
+			"revision": "639452bbcc5c9c81bcbe3e4488b3b2b99a3a8016",
+			"revisionTime": "2017-08-30T11:47:04Z"
 		},
 		{
 			"checksumSHA1": "ZokxRO/FavchTs9BrbmiCZNrzO4=",

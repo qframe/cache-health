@@ -17,16 +17,27 @@ $ go run main.go
 ```
 The endpoint looks like this, as the logs of the logging container are skipped, it shows up under skipped - otherwise a log-loop would be created.
 ```
-$ curl -s http://localhost:8123/health |jq '"health:"+.health+" | healthMsg: "+.healthMsg'
-"health:healthy | healthMsg: RunningContainers:1 | metricsGoRoutines:1 | logsGoRoutine:(0 [logs] + 1 [skipped])"
+$ curl -sH "Accept: application/json" localhost:8123/_health |jq .
+  {
+    "message": "RunningContainers:1 | logsGoRoutine:(0 [logs] + 1 [skipped] + 0 [non json-file])",
+    "routines": {
+      "log": "",
+      "logSkip": "049248f1fd009",
+      "logWrongType": "",
+      "stats": ""
+    },
+    "status": "healthy",
+    "vitals": {}
+  }
 $ curl -s http://localhost:8123/health |jq '"stats:"+.statsRoutines+" | log: "+.logRoutines +" | logSkip: "+.logSkipRoutines'
 "stats:ee191cd6faed7f4719a68b607d9c5771ad5aafc690c6a63b91f99a648d260c35 | log:  | logSkip: ee191cd6faed7f4719a68b607d9c5771ad5aafc690c6a63b91f99a648d260c35"
 ```
 When starting a new container...
-```
-$ docker run -e SKIP_ENTRYPOINTS=true -ti --rm --no-healthcheck qnib/uplain-init sleep 15
-[II] qnib/init-plain script v0.4.28
-> execute CMD 'sleep 15'
+
+```bash
+$ docker run -d ubuntu sleep 600
+669e32660f85b5481ead6bf21a3c6318f222b76df917454143675bfa5181212d
+$
 ```
 ... the endpoint changes...
 ```

@@ -35,12 +35,21 @@ type Plugin struct {
 
 
 func New(qChan qtypes_qchannel.QChan, cfg *config.Config, name string) (Plugin, error) {
+	p := qtypes_plugin.NewNamedPlugin(qChan, cfg, pluginTyp, pluginPkg, name, version)
+	ignoreStats := p.CfgBoolOr("ignore-stats", false)
+	ignoreLogs := p.CfgBoolOr("ignore-logs", false)
+	he := NewHealthEndpoint([]string{"log","logSkip", "logWrongType", "stats"})
+	if ignoreLogs {
+		he = NewHealthEndpoint([]string{"stats"})
+	}
+	if ignoreStats {
+		he = NewHealthEndpoint([]string{"log","logSkip", "logWrongType"})
+	}
 	return Plugin{
-		Plugin: qtypes_plugin.NewNamedPlugin(qChan, cfg, pluginTyp, pluginPkg, name, version),
-		HealthEndpoint:		NewHealthEndpoint([]string{"log","logSkip", "logWrongType", "stats"}),
+		Plugin: p,
+		HealthEndpoint:	he,
 	}, nil
 }
-
 
 func (p *Plugin) RoutineAdd(routine, id string) {
 	err := p.HealthEndpoint.AddRoutine(routine, id)

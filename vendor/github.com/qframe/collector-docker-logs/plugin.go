@@ -98,7 +98,7 @@ func (p *Plugin) SubscribeRunning() {
 					b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
 					de := qtypes_docker_events.NewDockerEvent(b, event)
 					ce := qtypes_docker_events.NewContainerEvent(de, cjson)
-					h := qtypes_health.NewHealthBeat(b, "routine.logSkip", ce.Container.ID[:13], "start")
+					h := qtypes_health.NewHealthBeat(b, "routine.logSkip", ce.Container.ID[:12], "start")
 					p.Log("info", "Send logSkip-HealthBeat for "+h.Actor)
 					p.QChan.SendData(h)
 					skipCnt = true
@@ -111,7 +111,7 @@ func (p *Plugin) SubscribeRunning() {
 			}
 			if cjson.HostConfig.LogConfig.Type != "json-file" {
 				b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
-				h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", cjson.ID[:13], "start")
+				h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", cjson.ID[:12], "start")
 				p.QChan.SendData(h)
 				continue
 			}
@@ -119,7 +119,7 @@ func (p *Plugin) SubscribeRunning() {
 			b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
 			de := qtypes_docker_events.NewDockerEvent(b, event)
 			ce := qtypes_docker_events.NewContainerEvent(de, cjson)
-			h := qtypes_health.NewHealthBeat(b, "routine.log", ce.Container.ID[:13], "start")
+			h := qtypes_health.NewHealthBeat(b, "routine.log", ce.Container.ID[:12], "start")
 			p.QChan.SendData(h)
 			p.StartSupervisorCE(ce)
 		}
@@ -198,13 +198,13 @@ func (p *Plugin) sendHealthhbeat(ce qtypes_docker_events.ContainerEvent, action 
 	}
 	if ce.Container.HostConfig.LogConfig.Type != "json-file" {
 		b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
-		h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", ce.Container.ID[:13], "start")
+		h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", ce.Container.ID[:12], "start")
 		p.QChan.SendData(h)
 		return
 	}
 
-	h := qtypes_health.NewHealthBeat(b, routineName, ce.Container.ID[:13], action)
+	h := qtypes_health.NewHealthBeat(b, routineName, ce.Container.ID[:12], action)
 	p.QChan.SendData(h)
-	h = qtypes_health.NewHealthBeat(b, "vitals", p.Name, fmt.Sprintf("%s.%s", ce.Container.ID[:13], action))
+	h = qtypes_health.NewHealthBeat(b, "vitals", p.Name, fmt.Sprintf("%s.%s", ce.Container.ID[:12], action))
 	p.QChan.SendData(h)
 }
