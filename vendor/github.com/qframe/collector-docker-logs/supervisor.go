@@ -9,7 +9,8 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/api/types"
-	"github.com/qnib/qframe-types"
+	"github.com/qframe/types/qchannel"
+	"github.com/qframe/types/messages"
 )
 
 
@@ -25,7 +26,7 @@ type ContainerSupervisor struct {
 	Container 	types.ContainerJSON
 	Com 		chan interface{} // Channel to communicate with goroutine
 	cli 		*client.Client
-	qChan 		qtypes.QChan
+	qChan 		qtypes_qchannel.QChan
 	TimeRexex	*regexp.Regexp
 }
 
@@ -49,14 +50,14 @@ func (cs ContainerSupervisor) Run() {
 		line := scanner.Text()
 		sText := strings.Split(line, " ")
 		shostL := strings.TrimLeft(strings.Join(sText[1:], " "), " ")
-		var base qtypes.Base
+		var base qtypes_messages.Base
 		lTime, err := cs.fuzzyParseTime(sText[0])
 		if err != nil {
-			base = qtypes.NewBase(cs.Name)
+			base = qtypes_messages.NewBase(cs.Name)
 		} else {
-			base = qtypes.NewTimedBase(cs.Name, lTime)
+			base = qtypes_messages.NewTimedBase(cs.Name, lTime)
 		}
-		qm := qtypes.NewContainerMessage(base, cs.Container, cs.Name, qtypes.MsgDLOG, shostL)
+		qm := qtypes_messages.NewContainerMessage(base, cs.Container, shostL)
 		cs.Log("debug", fmt.Sprintf("MsgDigest:'%s'  | Container '%s': %s", qm.GetMessageDigest(), cs.Container.Name, shostL))
 		cs.qChan.Data.Send(qm)
 	}

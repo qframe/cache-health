@@ -4,18 +4,20 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/client"
-	"github.com/zpatrick/go-config"
-	"github.com/qnib/qframe-types"
 	"github.com/qframe/types/health"
 	"github.com/urfave/negroni"
 	"net/http"
 	"time"
 	"strings"
+	"github.com/qframe/types/constants"
+	"github.com/qframe/types/plugin"
+	"github.com/qframe/types/qchannel"
+	"github.com/zpatrick/go-config"
 )
 
 const (
 	version   = "0.1.2"
-	pluginTyp = qtypes.CACHE
+	pluginTyp = qtypes_constants.CACHE
 	pluginPkg = "health"
 	dockerAPI = "v1.29"
 )
@@ -25,17 +27,16 @@ var (
 )
 
 type Plugin struct {
-	qtypes.Plugin
+	*qtypes_plugin.Plugin
 	cli *client.Client
 	HealthEndpoint  *HealthEndpoint
 }
 
 
 
-func New(qChan qtypes.QChan, cfg *config.Config, name string) (Plugin, error) {
-	p := qtypes.NewNamedPlugin(qChan, cfg, pluginTyp, pluginPkg, name, version)
+func New(qChan qtypes_qchannel.QChan, cfg *config.Config, name string) (Plugin, error) {
 	return Plugin{
-		Plugin: 			p,
+		Plugin: qtypes_plugin.NewNamedPlugin(qChan, cfg, pluginTyp, pluginPkg, name, version),
 		HealthEndpoint:		NewHealthEndpoint([]string{"log","logSkip", "logWrongType", "stats"}),
 	}, nil
 }
@@ -59,7 +60,7 @@ func (p *Plugin) RoutineDel(routine, id string) {
 func (p *Plugin) SetHealth(status, msg string) {
 	err := p.HealthEndpoint.SetHealth(status, msg)
 	if err != nil {
-		p.Log("error", err.Error())
+		p.Log("error", fmt.Sprintf("%s for msg '%s': %s", status, msg, err.Error()))
 	}
 }
 
@@ -111,13 +112,14 @@ func (p *Plugin) handleHB(hb qtypes_health.HealthBeat) {
 }
 
 // Run fetches everything from the Data channel and flushes it to stdout
-func (p *Plugin) Run() {
+func (p *Plugin) Run() (err error) {
 	p.Log("notice", fmt.Sprintf("Start plugin v%s", p.Version))
 	dc := p.QChan.Data.Join()
+	done := p.QChan.Done.Join()
 	tc := p.QChan.Tick.Join()
 	go p.startHTTP()
 	p.StartTicker("health-ticker", 2500)
-	err := p.connectingDocker()
+	err = p.connectingDocker()
 	if err != nil {
 		return
 	}
@@ -132,8 +134,13 @@ func (p *Plugin) Run() {
 				hb := val.(qtypes_health.HealthBeat)
 				p.handleHB(hb)
 			}
+		case err = <- p.ErrChan:
+			return
+		case <- done.Read:
+			return
 		}
 	}
+	return
 }
 
 func (p *Plugin) connectingDocker() (err error) {
@@ -157,24 +164,30 @@ func (p *Plugin) getRunningCntCount() int {
 }
 
 func (p *Plugin) checkHealth(cntCount int) {
+	ignoreStats := p.CfgBoolOr("ignore-stats", false)
+	ignoreLogs := p.CfgBoolOr("ignore-logs", false)
 	msg := []string{fmt.Sprintf("RunningContainers:%d", cntCount)}
-	statsCnt := p.HealthEndpoint.CountRoutine("stats")
-	msg = append(msg, fmt.Sprintf("metricsGoRoutines:%d", statsCnt))
-	if cntCount == statsCnt {
-		p.SetHealth("healthy", strings.Join(msg, " | "))
-	} else {
-		p.SetHealth("unhealthy", strings.Join(msg, " | "))
-		return
+	if ! ignoreStats {
+		statsCnt := p.HealthEndpoint.CountRoutine("stats")
+		msg = append(msg, fmt.Sprintf("metricsGoRoutines:%d", statsCnt))
+		if cntCount == statsCnt {
+			p.SetHealth("healthy", strings.Join(msg, " | "))
+		} else {
+			p.SetHealth("unhealthy", strings.Join(msg, " | "))
+			return
+		}
 	}
-	lCnt := p.HealthEndpoint.CountRoutine("log")
-	lSkipCnt := p.HealthEndpoint.CountRoutine("logSkip")
-	lWrongType := p.HealthEndpoint.CountRoutine("logWrongType")
-	msg = append(msg, fmt.Sprintf("logsGoRoutine:(%d [logs] + %d [skipped] + %d [non json-file])", lCnt, lSkipCnt, lWrongType))
-	if cntCount == (lCnt + lSkipCnt + lWrongType) {
-		p.SetHealth("healthy", strings.Join(msg, " | "))
-	} else {
-		p.SetHealth("unhealthy", strings.Join(msg, " | "))
-		return
+	if !ignoreLogs {
+		lCnt := p.HealthEndpoint.CountRoutine("log")
+		lSkipCnt := p.HealthEndpoint.CountRoutine("logSkip")
+		lWrongType := p.HealthEndpoint.CountRoutine("logWrongType")
+		msg = append(msg, fmt.Sprintf("logsGoRoutine:(%d [logs] + %d [skipped] + %d [non json-file])", lCnt, lSkipCnt, lWrongType))
+		if cntCount == (lCnt + lSkipCnt + lWrongType) {
+			p.SetHealth("healthy", strings.Join(msg, " | "))
+		} else {
+			p.SetHealth("unhealthy", strings.Join(msg, " | "))
+			return
+		}
 	}
 	p.SetHealth("healthy", strings.Join(msg, " | "))
 }
@@ -187,7 +200,9 @@ func (p *Plugin) startHTTP() {
 	n.Use(negroni.HandlerFunc(p.LogMiddleware))
 	addr := fmt.Sprintf("0.0.0.0:8123")
 	p.Log("info", fmt.Sprintf("Start health-endpoint: %s", addr))
-	http.ListenAndServe(addr, n)
+	err :=  http.ListenAndServe(addr, n)
+	p.ErrChan <- err
+	p.Log("error", err.Error())
 }
 
 func (p *Plugin) LogMiddleware(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {

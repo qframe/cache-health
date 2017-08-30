@@ -11,15 +11,16 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/zpatrick/go-config"
 
-	"github.com/qnib/qframe-types"
 	"regexp"
 	"github.com/qframe/types/health"
 	"github.com/qframe/types/messages"
 	"github.com/qframe/types/docker-events"
+	"github.com/qframe/types/plugin"
+	"github.com/qframe/types/qchannel"
 )
 
 const (
-	version = "0.3.4"
+	version = "0.4.0"
 	pluginTyp = "collector"
 	pluginPkg = "docker-logs"
 	dockerAPI = "v1.29"
@@ -30,7 +31,7 @@ var (
 )
 
 type Plugin struct {
-	qtypes.Plugin
+	*qtypes_plugin.Plugin
 	cli *client.Client
 	info types.Info
 	sMap map[string]ContainerSupervisor
@@ -61,10 +62,10 @@ func (p *Plugin) StartSupervisorCE(ce qtypes_docker_events.ContainerEvent) {
 }
 
 
-func New(qChan qtypes.QChan, cfg *config.Config, name string) (Plugin, error) {
+func New(qChan qtypes_qchannel.QChan, cfg *config.Config, name string) (Plugin, error) {
 	var err error
 	p := Plugin{
-		Plugin: qtypes.NewNamedPlugin(qChan, cfg, pluginTyp, pluginPkg,  name, version),
+		Plugin: qtypes_plugin.NewNamedPlugin(qChan, cfg, pluginTyp, pluginPkg,  name, version),
 		sMap: map[string]ContainerSupervisor{},
 	}
 	return p, err
@@ -102,6 +103,7 @@ func (p *Plugin) SubscribeRunning() {
 					p.QChan.SendData(h)
 					skipCnt = true
 					break
+
 				}
 			}
 			if skipCnt {

@@ -3,22 +3,19 @@ package main
 import (
 	"log"
 	"github.com/zpatrick/go-config"
-	"github.com/qnib/qframe-types"
 	"github.com/qframe/cache-health"
 	"github.com/qframe/collector-docker-events"
 	"github.com/qframe/collector-docker-logs"
-	"github.com/qframe/collector-docker-stats"
 	"github.com/qframe/types/health"
+	"github.com/qframe/types/qchannel"
 )
 
 func main() {
-	qChan := qtypes.NewQChan()
+	qChan := qtypes_qchannel.NewQChan()
 	qChan.Broadcast()
 	cfgMap := map[string]string{
 		"log.level": "debug",
-		"log.only-plugins": "health,logs",
-		"collector.logs.inputs": "events",
-		"collector.stats.inputs": "events",
+		"cache.health.ignore-stats": "true",
 	}
 	cfg := config.NewConfig([]config.Provider{config.NewStatic(cfgMap)})
 	// Create Health Cache
@@ -39,12 +36,12 @@ func main() {
 		log.Fatalf("[EE] Failed to create docker-logs: %v", err)
 	}
 	go pdl.Run()
-	// Create Docker Logs Collector
-	pds, err := qcollector_docker_stats.New(qChan, cfg, "stats")
+	// Create Docker Stats Collector
+	/*pds, err := qcollector_docker_stats.New(qChan, cfg, "stats")
 	if err != nil {
 		log.Fatalf("[EE] Failed to create docker-stats: %v", err)
 	}
-	go pds.Run()
+	go pds.Run()*/
 	bg := p.QChan.Data.Join()
 
 	for {
