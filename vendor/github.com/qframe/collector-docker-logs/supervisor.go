@@ -23,7 +23,8 @@ type ContainerSupervisor struct {
 	Action      string
 	CntID 		string 			 // ContainerID
 	CntName 	string			 // sanatized name of container
-	Container 	types.ContainerJSON
+	Info		*types.Info
+	Container 	*types.ContainerJSON
 	Com 		chan interface{} // Channel to communicate with goroutine
 	cli 		*client.Client
 	qChan 		qtypes_qchannel.QChan
@@ -58,6 +59,7 @@ func (cs ContainerSupervisor) Run() {
 			base = qtypes_messages.NewTimedBase(cs.Name, lTime)
 		}
 		qm := qtypes_messages.NewContainerMessage(base, cs.Container, shostL)
+		qm.AddEngineInfo(cs.Info)
 		cs.Log("debug", fmt.Sprintf("MsgDigest:'%s'  | Container '%s': %s", qm.GetMessageDigest(), cs.Container.Name, shostL))
 		cs.qChan.Data.Send(qm)
 	}

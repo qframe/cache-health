@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version = "0.4.0"
+	version = "0.4.2"
 	pluginTyp = "collector"
 	pluginPkg = "docker-logs"
 	dockerAPI = "v1.29"
@@ -38,13 +38,14 @@ type Plugin struct {
 	TimeRegex   *regexp.Regexp
 }
 
-func (p *Plugin) StartSupervisor(ce events.Message, cnt types.ContainerJSON) {
+func (p *Plugin) StartSupervisor(ce events.Message, cnt types.ContainerJSON, info types.Info) {
 	s := ContainerSupervisor{
 		Plugin: *p,
 		Action: ce.Action,
 		CntID: ce.Actor.ID,
 		CntName: ce.Actor.Attributes["name"],
-		Container: cnt,
+		Info: &info,
+		Container: &cnt,
 		Com: make(chan interface{}),
 		cli: p.cli,
 		qChan: p.QChan,
@@ -54,11 +55,12 @@ func (p *Plugin) StartSupervisor(ce events.Message, cnt types.ContainerJSON) {
 		s.TailRunning = p.CfgStringOr("tail-logs-since", "1m")
 	}
 	p.sMap[ce.Actor.ID] = s
-	go s.Run()
+	defer delete(p.sMap, ce.Actor.ID)
+	s.Run()
 }
 
 func (p *Plugin) StartSupervisorCE(ce qtypes_docker_events.ContainerEvent) {
-	p.StartSupervisor(ce.Event, ce.Container)
+	go p.StartSupervisor(ce.Event, ce.Container, p.info)
 }
 
 
@@ -76,7 +78,7 @@ func (p *Plugin) SubscribeRunning() {
 	if err != nil {
 		p.Log("error", fmt.Sprintf("Failed to list containers: %s", err.Error()))
 	} else {
-		skipLabel := p.CfgStringOr("skip-container-label", "org.qnib.qframe.skip-log")
+		logEnv := p.CfgStringOr("enable-log-env", "LOG_CAPTURE_ENABLED")
 		for _, cnt := range cnts {
 			cjson, err := p.cli.ContainerInspect(ctx, cnt.ID)
 			if err != nil {
@@ -91,22 +93,28 @@ func (p *Plugin) SubscribeRunning() {
 				},
 			}
 			// Skip those with the label:
-			skipCnt := false
-			for label, _ := range cjson.Config.Labels {
-				if label == skipLabel {
-					p.Log("info", fmt.Sprintf("Skip subscribing to logs of '%s' as label '%s' is set", cnt.Names, skipLabel))
-					b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
-					de := qtypes_docker_events.NewDockerEvent(b, event)
-					ce := qtypes_docker_events.NewContainerEvent(de, cjson)
-					h := qtypes_health.NewHealthBeat(b, "routine.logSkip", ce.Container.ID[:12], "start")
-					p.Log("info", "Send logSkip-HealthBeat for "+h.Actor)
-					p.QChan.SendData(h)
-					skipCnt = true
+			logCnt := false
+			for _, v := range cjson.Config.Env {
+				s := strings.Split(v,"=")
+				if len(s) != 2 {
+					p.Log("warn", fmt.Sprintf("Could not parse environment variable '%s'", v))
+					continue
+				}
+				if s[0] == logEnv && s[1] == "true" {
+					p.Log("info", fmt.Sprintf("Subscribing to logs of '%s' as environment variable '%s' is set to '%s", cnt.Names, logEnv, s[1]))
+					logCnt = true
 					break
 
 				}
 			}
-			if skipCnt {
+			if ! logCnt {
+				p.Log("info", fmt.Sprintf("Skip subscribing to logs of '%s' as environment variable '%s' was not found", cnt.Names, logEnv))
+				b := qtypes_messages.NewTimedBase(p.Name, time.Unix(cnt.Created, 0))
+				de := qtypes_docker_events.NewDockerEvent(b, event)
+				ce := qtypes_docker_events.NewContainerEvent(de, cjson)
+				h := qtypes_health.NewHealthBeat(b, "routine.logSkip", ce.Container.ID[:12], "start")
+				p.Log("info", "Send logSkip-HealthBeat for "+h.Actor)
+				p.QChan.SendData(h)
 				continue
 			}
 			if cjson.HostConfig.LogConfig.Type != "json-file" {
@@ -183,7 +191,6 @@ func (p *Plugin) Run() {
 		}
 	}
 }
-
 
 func (p *Plugin) sendHealthhbeat(ce qtypes_docker_events.ContainerEvent, action string) {
 	skipLabel := p.CfgStringOr("skip-container-label", "org.qnib.qframe.skip-log")

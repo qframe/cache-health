@@ -5,22 +5,30 @@ import (
 	"fmt"
 	"strings"
 	"github.com/docker/docker/api/types"
+
 )
 
 type ContainerMessage struct {
 	Message
 	Container types.ContainerJSON
+	Engine types.Info	// TODO:
 }
 
 
-func NewContainerMessage(base Base, cnt types.ContainerJSON, msg string) ContainerMessage {
+func NewContainerMessage(base Base, cnt *types.ContainerJSON, msg string) ContainerMessage {
 	m := NewMessage(base, msg)
 	c := ContainerMessage{
-		m,
-		cnt,
+		Message: m,
+		Container: *cnt,
+		Engine: types.Info{},
 	}
 	c.ID = c.GenContainerMsgID()
 	return c
+}
+
+
+func (cm *ContainerMessage) AddEngineInfo(e *types.Info) {
+	cm.Engine = *e
 }
 
 // GenContainerMsgID uses "<container_id>-<time.UnixNano()>-<MSG>" and does a sha1 hash.
