@@ -8,20 +8,24 @@ import (
 	"sort"
 )
 
+
+
 type Routines struct {
 	mu sync.Mutex
-	value mapset.Set	 `json:"id,omitempty"`
+	keys mapset.Set	 `json:"id,omitempty"`
+	values map[string]Routine
 }
 
 func NewRoutines() *Routines {
 	return &Routines{
-		value: mapset.NewSet(),
+		keys: mapset.NewSet(),
+		values: map[string]Routine{},
 	}
 }
 
 func (r *Routines) Get() []string {
 	res := []string{}
-	for _, x := range r.value.ToSlice() {
+	for _, x := range r.keys.ToSlice() {
 		res = append(res, fmt.Sprintf("%s", x))
 	}
 	sort.Strings(res)
@@ -37,10 +41,17 @@ func (r *Routines) String() string {
 	return fmt.Sprintf("%s", strings.Join(res, ","))
 }
 
-func (r *Routines) Add(str string) {
-	r.value.Add(str)
+func (r *Routines) Add(rt Routine) (err error) {
+	key := rt.GetID()
+	ok := r.keys.Add(key)
+	if ! ok {
+		return fmt.Errorf("key '%s' already existing", key)
+	}
+	r.values[key] = rt
+	return
 }
 
-func (r *Routines) Del(str string) {
-	r.value.Remove(str)
+func (r *Routines) Del(rt Routine) {
+	r.keys.Remove(rt.GetID())
+	delete(r.values, rt.GetID())
 }

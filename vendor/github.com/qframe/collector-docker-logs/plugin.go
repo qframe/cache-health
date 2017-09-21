@@ -92,20 +92,10 @@ func (p *Plugin) SubscribeRunning() {
 					Attributes: map[string]string{"name": strings.Trim(cnt.Names[0],"/")},
 				},
 			}
-			// Skip those with the label:
-			logCnt := false
-			for _, v := range cjson.Config.Env {
-				s := strings.Split(v,"=")
-				if len(s) != 2 {
-					p.Log("warn", fmt.Sprintf("Could not parse environment variable '%s'", v))
-					continue
-				}
-				if s[0] == logEnv && s[1] == "true" {
-					p.Log("info", fmt.Sprintf("Subscribing to logs of '%s' as environment variable '%s' is set to '%s", cnt.Names, logEnv, s[1]))
-					logCnt = true
-					break
-
-				}
+			// Skip those with the Env:
+			logCnt, err := SkipContainer(&cjson, logEnv)
+			if err != nil {
+				p.Log("debug", err.Error())
 			}
 			if ! logCnt {
 				p.Log("info", fmt.Sprintf("Skip subscribing to logs of '%s' as environment variable '%s' was not found", cnt.Names, logEnv))
@@ -139,6 +129,7 @@ func (p *Plugin) Run() {
 
 	var err error
 	dockerHost := p.CfgStringOr("docker-host", "unix:///var/run/docker.sock")
+	logEnv := p.CfgStringOr("enable-log-env", "LOG_CAPTURE_ENABLED")
 	p.cli, err = client.NewClient(dockerHost, dockerAPI, nil, nil)
 	if err != nil {
 		p.Log("error", fmt.Sprintf("Could not connect docker/docker/client to '%s': %v", dockerHost, err))
@@ -157,8 +148,6 @@ func (p *Plugin) Run() {
 		p.Log("info", fmt.Sprintf("Start listeners for already running containers: %d", p.info.ContainersRunning))
 		p.SubscribeRunning()
 	}
-	inputs := p.GetInputs()
-	srcSuccess := p.CfgBoolOr("source-success", true)
 	dc := p.QChan.Data.Join()
 	for {
 		select {
@@ -166,20 +155,18 @@ func (p *Plugin) Run() {
 			switch msg.(type) {
 			case qtypes_docker_events.ContainerEvent:
 				ce := msg.(qtypes_docker_events.ContainerEvent)
-				if len(inputs) != 0 && ! ce.InputsMatch(inputs) {
+				logCnt, err := SkipContainer(&ce.Container, logEnv)
+				if err != nil {
+					p.Log("debug", err.Error())
+				}
+				if logCnt {
 					continue
 				}
-				if ce.SourceSuccess != srcSuccess {
-					continue
-				}
-				if ce.Event.Type == "container" && (strings.HasPrefix(ce.Event.Action, "exec_create") || strings.HasPrefix(ce.Event.Action, "exec_start")) {
-					continue
-				}
-				p.Log("debug", fmt.Sprintf("Received: %s", ce.Message))
 				switch ce.Event.Type {
 				case "container":
 					switch ce.Event.Action {
 					case "start":
+
 						p.sendHealthhbeat(ce, "start")
 						p.StartSupervisorCE(ce)
 					case "die":

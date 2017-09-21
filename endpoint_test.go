@@ -7,28 +7,34 @@ import (
 	"time"
 )
 
+var (
+	ts =  time.Unix(1505927762, 0)
+	rt1 = NewRoutine("id1", "start", ts)
+	rt2 = NewRoutine("id2", "start", ts)
+)
+
 func TestHealthEndpoint(t *testing.T) {
 	he := NewHealthEndpoint([]string{"test"})
 	assert.Equal(t, -1, he.CountRoutine("nil"))
 	assert.Equal(t, 0, he.CountRoutine("test"))
-	err := he.AddRoutine("nil", "id1")
+	err := he.AddRoutine("nil", rt1)
 	assert.Error(t, err, "Should not find routine 'nil'")
-	err = he.AddRoutine("test", "id1")
+	err = he.AddRoutine("test", rt1)
 	assert.NoError(t, err, "Should find routine 'test'")
 	assert.Equal(t, 1, he.CountRoutine("test"))
 	// remove
-	err = he.DelRoutine("nil", "id1")
+	err = he.DelRoutine("nil", rt1)
 	assert.Error(t, err, "Should not find routine 'nil'")
-	err = he.DelRoutine("test", "id1")
+	err = he.DelRoutine("test", rt1)
 	assert.NoError(t, err, "Should find routine 'test'")
 	assert.Equal(t, 0, he.CountRoutine("test"))
 }
 
 func TestHealthEndpoint_GetJSONs(t *testing.T) {
 	he := NewHealthEndpoint([]string{"test"})
-	err := he.AddRoutine("test", "id1")
+	err := he.AddRoutine("test", rt1)
 	assert.NoError(t, err, "Should find routine 'test'")
-	err = he.AddRoutine("test", "id2")
+	err = he.AddRoutine("test", rt2)
 	///// Routines
 	routines :=  map[string]string{
 		"test": "id1,id2",
@@ -75,12 +81,12 @@ func TestHealthEndpoint_GetJSONs(t *testing.T) {
 
 func TestHealthEndpoint_GetTXT(t *testing.T) {
 	he := NewHealthEndpoint([]string{"test"})
-	err := he.AddRoutine("test", "id1")
+	err := he.AddRoutine("test", rt1)
 	assert.NoError(t, err, "Should find routine 'test'")
-	err = he.AddRoutine("test", "id2")
+	err = he.AddRoutine("test", rt2)
 	exp := []string{
 		"health:starting | msg:Just started",
-		"test           : | 2  | id1,id2",
+		"test           : | 2  | id1,id2\n",
 	}
 	got := he.GetTXT()
 	assert.Equal(t, strings.Join(exp,"\n"), got)

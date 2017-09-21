@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	gring "github.com/zfjagann/golang-ring"
+	"github.com/docker/docker/client"
 )
 
 const (
@@ -19,6 +20,7 @@ const (
 type HealthEndpoint struct {
 	healthRing 		*gring.Ring
 	healthMsgRing 	*gring.Ring
+	engCli 			client.Client
 	goRoutines 		map[string]*Routines	`json:"routines,omitempty"`
 	vitals			map[string]*Vitals		`json:"vitals,omitempty"`
 
@@ -40,8 +42,15 @@ func NewHealthEndpoint(routines []string) *HealthEndpoint {
 	for _, r := range routines {
 		he.goRoutines[r] = NewRoutines()
 	}
+	// TODO: Create dockerClient
 	return he
 }
+
+// RecoverUnhealthy checks the list of running containers and tries
+// to automitigate if containers were not removed correctly.
+/*func (he *HealthEndpoint) RecoverUnhealthy() (err error) {
+
+}*/
 
 func (he *HealthEndpoint) SetHealth(status, msg string) (err error) {
 	v := []string{}
@@ -78,21 +87,23 @@ func (he *HealthEndpoint) SetHealth(status, msg string) (err error) {
 	return
 }
 
-func (he *HealthEndpoint) AddRoutine(routine, id string) (err error) {
-	_, ok := he.goRoutines[routine]
+func (he *HealthEndpoint) AddRoutine(routineType string, rt Routine) (err error) {
+	_, ok := he.goRoutines[routineType]
 	if !ok {
-		return fmt.Errorf("Could not find routine '%s'", routine)
+		return fmt.Errorf("Could not find routine type '%s'", routineType)
 	}
-	he.goRoutines[routine].Add(id)
+	he.goRoutines[routineType].Add(rt)
 	return
 }
 
-func (he *HealthEndpoint) DelRoutine(routine, id string) (err error) {
-	_, ok := he.goRoutines[routine]
+
+
+func (he *HealthEndpoint) DelRoutine(routineType string, rt Routine) (err error) {
+	_, ok := he.goRoutines[routineType]
 	if !ok {
-		return fmt.Errorf("Could not find routine '%s'", routine)
+		return fmt.Errorf("Could not find routine type '%s'", routineType)
 	}
-	he.goRoutines[routine].Del(id)
+	he.goRoutines[routineType].Del(rt)
 	return
 }
 
