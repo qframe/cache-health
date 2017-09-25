@@ -14,7 +14,8 @@ func main() {
 	qChan := qtypes_qchannel.NewQChan()
 	qChan.Broadcast()
 	cfgMap := map[string]string{
-		"log.level": "debug",
+		"log.level": "trace",
+		"log.only-plugins": "logs",
 		"cache.health.ignore-stats": "true",
 	}
 	cfg := config.NewConfig([]config.Provider{config.NewStatic(cfgMap)})

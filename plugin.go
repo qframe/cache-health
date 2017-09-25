@@ -51,19 +51,18 @@ func New(qChan qtypes_qchannel.QChan, cfg *config.Config, name string) (Plugin, 
 	}, nil
 }
 
-func (p *Plugin) RoutineAdd(routine, id string) {
-	err := p.HealthEndpoint.AddRoutine(routine, id)
+func (p *Plugin) RoutineAdd(routineType string, rt Routine) {
+	err := p.HealthEndpoint.AddRoutine(routineType, rt)
 	if err != nil {
 		p.Log("error", err.Error())
 	}
 }
 
-func (p *Plugin) RoutineDel(routine, id string) {
-	err := p.HealthEndpoint.DelRoutine(routine, id)
+func (p *Plugin) RoutineDel(routineType string, rt Routine) {
+	err := p.HealthEndpoint.DelRoutine(routineType, rt)
 	if err != nil {
 		p.Log("error", err.Error())
 	}
-
 }
 
 func (p *Plugin) SetHealth(status, msg string) {
@@ -74,34 +73,35 @@ func (p *Plugin) SetHealth(status, msg string) {
 }
 
 func (p *Plugin) handleRoutines(hb qtypes_health.HealthBeat) {
+	rt := NewRoutine(hb.Actor, hb.Action, hb.Time)
 	switch hb.Type {
 	case "routine.log":
 		switch hb.Action {
 		case "start":
-			p.RoutineAdd("log", hb.Actor)
+			p.RoutineAdd("log", rt)
 		case "stop":
-			p.RoutineDel("log", hb.Actor)
+			p.RoutineDel("log", rt)
 		}
 	case "routine.logSkip":
 		switch hb.Action {
 		case "start":
-			p.RoutineAdd("logSkip", hb.Actor)
+			p.RoutineAdd("logSkip", rt)
 		case "stop":
-			p.RoutineDel("logSkip", hb.Actor)
+			p.RoutineDel("logSkip", rt)
 		}
 	case "routine.logWrongType":
 		switch hb.Action {
 		case "start":
-			p.RoutineAdd("logWrongType", hb.Actor)
+			p.RoutineAdd("logWrongType", rt)
 		case "stop":
-			p.RoutineDel("logWrongType", hb.Actor)
+			p.RoutineDel("logWrongType", rt)
 		}
 	case "routine.stats":
 		switch hb.Action {
 		case "start":
-			p.RoutineAdd("stats", hb.Actor)
+			p.RoutineAdd("stats", rt)
 		case "stop":
-			p.RoutineDel("stats", hb.Actor)
+			p.RoutineDel("stats", rt)
 		}
 	}
 }

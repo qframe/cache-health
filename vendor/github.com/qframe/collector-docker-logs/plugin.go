@@ -17,6 +17,7 @@ import (
 	"github.com/qframe/types/docker-events"
 	"github.com/qframe/types/plugin"
 	"github.com/qframe/types/qchannel"
+	"reflect"
 )
 
 const (
@@ -92,20 +93,10 @@ func (p *Plugin) SubscribeRunning() {
 					Attributes: map[string]string{"name": strings.Trim(cnt.Names[0],"/")},
 				},
 			}
-			// Skip those with the label:
-			logCnt := false
-			for _, v := range cjson.Config.Env {
-				s := strings.Split(v,"=")
-				if len(s) != 2 {
-					p.Log("warn", fmt.Sprintf("Could not parse environment variable '%s'", v))
-					continue
-				}
-				if s[0] == logEnv && s[1] == "true" {
-					p.Log("info", fmt.Sprintf("Subscribing to logs of '%s' as environment variable '%s' is set to '%s", cnt.Names, logEnv, s[1]))
-					logCnt = true
-					break
-
-				}
+			// Skip those with the Env:
+			logCnt, err := SkipContainer(&cjson, logEnv)
+			if err != nil {
+				p.Log("debug", err.Error())
 			}
 			if ! logCnt {
 				p.Log("info", fmt.Sprintf("Skip subscribing to logs of '%s' as environment variable '%s' was not found", cnt.Names, logEnv))
@@ -139,6 +130,7 @@ func (p *Plugin) Run() {
 
 	var err error
 	dockerHost := p.CfgStringOr("docker-host", "unix:///var/run/docker.sock")
+	logEnv := p.CfgStringOr("enable-log-env", "LOG_CAPTURE_ENABLED")
 	p.cli, err = client.NewClient(dockerHost, dockerAPI, nil, nil)
 	if err != nil {
 		p.Log("error", fmt.Sprintf("Could not connect docker/docker/client to '%s': %v", dockerHost, err))
@@ -157,8 +149,6 @@ func (p *Plugin) Run() {
 		p.Log("info", fmt.Sprintf("Start listeners for already running containers: %d", p.info.ContainersRunning))
 		p.SubscribeRunning()
 	}
-	inputs := p.GetInputs()
-	srcSuccess := p.CfgBoolOr("source-success", true)
 	dc := p.QChan.Data.Join()
 	for {
 		select {
@@ -166,52 +156,55 @@ func (p *Plugin) Run() {
 			switch msg.(type) {
 			case qtypes_docker_events.ContainerEvent:
 				ce := msg.(qtypes_docker_events.ContainerEvent)
-				if len(inputs) != 0 && ! ce.InputsMatch(inputs) {
+				if ce.Event.Type == "container" && strings.HasPrefix(ce.Event.Action, "exec_") {
 					continue
 				}
-				if ce.SourceSuccess != srcSuccess {
-					continue
+				p.Log("trace", fmt.Sprintf("Receied ContainerEvent: %s.%s", ce.Event.Type, ce.Event.Action))
+				skipCnt, err := SkipContainer(&ce.Container, logEnv)
+				if err != nil {
+					p.Log("debug", err.Error())
 				}
-				if ce.Event.Type == "container" && (strings.HasPrefix(ce.Event.Action, "exec_create") || strings.HasPrefix(ce.Event.Action, "exec_start")) {
-					continue
-				}
-				p.Log("debug", fmt.Sprintf("Received: %s", ce.Message))
 				switch ce.Event.Type {
 				case "container":
 					switch ce.Event.Action {
 					case "start":
-						p.sendHealthhbeat(ce, "start")
+						if ! skipCnt {
+							p.sendHealthhbeat("routine.logSkip", ce, "start")
+							continue
+						}
+						p.sendHealthhbeat("routine.log", ce, "start")
 						p.StartSupervisorCE(ce)
 					case "die":
-						p.sendHealthhbeat(ce, "stop")
+						if ! skipCnt {
+							p.sendHealthhbeat("routine.logSkip", ce, "stop")
+							continue
+						}
+						p.sendHealthhbeat("routine.log", ce, "stop")
 						p.sMap[ce.Event.Actor.ID].Com <- ce.Event.Action
 					}
 				}
+			default:
+				p.Log("trace", fmt.Sprintf("Dunno what to do with type: %s", reflect.TypeOf(msg)))
 			}
 		}
 	}
 }
 
-func (p *Plugin) sendHealthhbeat(ce qtypes_docker_events.ContainerEvent, action string) {
-	skipLabel := p.CfgStringOr("skip-container-label", "org.qnib.qframe.skip-log")
-	b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
-	// Skip those with the label:
-	routineName := "routine.log"
-	for label, val := range ce.Container.Config.Labels {
-		if label == skipLabel && val == "true" {
-			routineName = "routine.logSkip"
-			break
-		}
+
+func (p *Plugin) sendHealthBeats(hbs []qtypes_health.HealthBeat) (err error) {
+	for _, h := range hbs {
+		p.QChan.SendData(h)
 	}
+	return
+}
+func (p *Plugin) sendHealthhbeat(rName string, ce qtypes_docker_events.ContainerEvent, action string) {
 	if ce.Container.HostConfig.LogConfig.Type != "json-file" {
 		b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
-		h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", ce.Container.ID[:12], "start")
+		h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", ce.Container.ID[:12], action)
 		p.QChan.SendData(h)
 		return
 	}
-
-	h := qtypes_health.NewHealthBeat(b, routineName, ce.Container.ID[:12], action)
-	p.QChan.SendData(h)
-	h = qtypes_health.NewHealthBeat(b, "vitals", p.Name, fmt.Sprintf("%s.%s", ce.Container.ID[:12], action))
-	p.QChan.SendData(h)
+	hbs := createHealthhbeats(p.Name, rName, action, ce)
+	p.sendHealthBeats(hbs)
 }
+
