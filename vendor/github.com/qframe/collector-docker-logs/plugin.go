@@ -17,6 +17,7 @@ import (
 	"github.com/qframe/types/docker-events"
 	"github.com/qframe/types/plugin"
 	"github.com/qframe/types/qchannel"
+	"reflect"
 )
 
 const (
@@ -155,50 +156,55 @@ func (p *Plugin) Run() {
 			switch msg.(type) {
 			case qtypes_docker_events.ContainerEvent:
 				ce := msg.(qtypes_docker_events.ContainerEvent)
-				logCnt, err := SkipContainer(&ce.Container, logEnv)
+				if ce.Event.Type == "container" && strings.HasPrefix(ce.Event.Action, "exec_") {
+					continue
+				}
+				p.Log("trace", fmt.Sprintf("Receied ContainerEvent: %s.%s", ce.Event.Type, ce.Event.Action))
+				skipCnt, err := SkipContainer(&ce.Container, logEnv)
 				if err != nil {
 					p.Log("debug", err.Error())
-				}
-				if logCnt {
-					continue
 				}
 				switch ce.Event.Type {
 				case "container":
 					switch ce.Event.Action {
 					case "start":
-
-						p.sendHealthhbeat(ce, "start")
+						if ! skipCnt {
+							p.sendHealthhbeat("routine.logSkip", ce, "start")
+							continue
+						}
+						p.sendHealthhbeat("routine.log", ce, "start")
 						p.StartSupervisorCE(ce)
 					case "die":
-						p.sendHealthhbeat(ce, "stop")
+						if ! skipCnt {
+							p.sendHealthhbeat("routine.logSkip", ce, "stop")
+							continue
+						}
+						p.sendHealthhbeat("routine.log", ce, "stop")
 						p.sMap[ce.Event.Actor.ID].Com <- ce.Event.Action
 					}
 				}
+			default:
+				p.Log("trace", fmt.Sprintf("Dunno what to do with type: %s", reflect.TypeOf(msg)))
 			}
 		}
 	}
 }
 
-func (p *Plugin) sendHealthhbeat(ce qtypes_docker_events.ContainerEvent, action string) {
-	skipLabel := p.CfgStringOr("skip-container-label", "org.qnib.qframe.skip-log")
-	b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
-	// Skip those with the label:
-	routineName := "routine.log"
-	for label, val := range ce.Container.Config.Labels {
-		if label == skipLabel && val == "true" {
-			routineName = "routine.logSkip"
-			break
-		}
+
+func (p *Plugin) sendHealthBeats(hbs []qtypes_health.HealthBeat) (err error) {
+	for _, h := range hbs {
+		p.QChan.SendData(h)
 	}
+	return
+}
+func (p *Plugin) sendHealthhbeat(rName string, ce qtypes_docker_events.ContainerEvent, action string) {
 	if ce.Container.HostConfig.LogConfig.Type != "json-file" {
 		b := qtypes_messages.NewTimedBase(p.Name, ce.Time)
-		h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", ce.Container.ID[:12], "start")
+		h := qtypes_health.NewHealthBeat(b, "routine.logWrongType", ce.Container.ID[:12], action)
 		p.QChan.SendData(h)
 		return
 	}
-
-	h := qtypes_health.NewHealthBeat(b, routineName, ce.Container.ID[:12], action)
-	p.QChan.SendData(h)
-	h = qtypes_health.NewHealthBeat(b, "vitals", p.Name, fmt.Sprintf("%s.%s", ce.Container.ID[:12], action))
-	p.QChan.SendData(h)
+	hbs := createHealthhbeats(p.Name, rName, action, ce)
+	p.sendHealthBeats(hbs)
 }
+

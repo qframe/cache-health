@@ -299,10 +299,10 @@
 			"revisionTime": "2017-09-18T08:04:46Z"
 		},
 		{
-			"checksumSHA1": "g6rVQGngiXaLjRJvMq38FjZ1oTY=",
+			"checksumSHA1": "F37Gd3BjgaKcpjVcdgulnVCvoUU=",
 			"path": "github.com/qframe/collector-docker-logs",
-			"revision": "cc4c1aaaa410510ece1a383f1cd4657956fc14e2",
-			"revisionTime": "2017-09-09T17:22:48Z"
+			"revision": "49c0b1cd6e2d63b4c9f66156c6b6570b78825afb",
+			"revisionTime": "2017-09-24T18:51:41Z"
 		},
 		{
 			"checksumSHA1": "ZokxRO/FavchTs9BrbmiCZNrzO4=",
