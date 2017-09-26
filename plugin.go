@@ -202,14 +202,16 @@ func (p *Plugin) checkHealth(cntCount int) {
 }
 
 func (p *Plugin) startHTTP() {
+	bindHost := p.CfgStringOr("bind-host", "0.0.0.0")
+	bindPort := p.CfgStringOr("bind-port", "8123")
+	bindAddr := fmt.Sprintf("%s:%s", bindHost, bindPort)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/_health", p.HealthEndpoint.Handle)
 	n := negroni.New()
 	n.UseHandler(mux)
 	n.Use(negroni.HandlerFunc(p.LogMiddleware))
-	addr := fmt.Sprintf("0.0.0.0:8123")
-	p.Log("info", fmt.Sprintf("Start health-endpoint: %s", addr))
-	err :=  http.ListenAndServe(addr, n)
+	p.Log("info", fmt.Sprintf("Start health-endpoint: %s", bindAddr))
+	err :=  http.ListenAndServe(bindAddr, n)
 	p.ErrChan <- err
 	p.Log("error", err.Error())
 }
